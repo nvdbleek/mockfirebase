@@ -155,8 +155,12 @@ MockFirebase.prototype.set = function (data, callback) {
   var err = this._nextErr('set');
   data = _.cloneDeep(data);
   this._defer('set', _.toArray(arguments), function() {
+    var isAdd = this.data === null;
     if (err === null) {
       this._dataChanged(data);
+      if (isAdd) {
+         this.parentRef._childChanged(this);
+      }
     }
     if (callback) callback(err);
   });
@@ -299,17 +303,21 @@ MockFirebase.prototype.off = function (event, callback, context) {
       });
     }
     else {
-      this._events[event] = [];      
+      this._events[event] = [];
     }
   }
 };
 
 MockFirebase.prototype.transaction = function (valueFn, finishedFn, applyLocally) {
   this._defer('transaction', _.toArray(arguments), function () {
+    var isAdd = this.data === null;
     var err = this._nextErr('transaction');
     var res = valueFn(this.getData());
     var newData = _.isUndefined(res) || err? this.getData() : res;
     this._dataChanged(newData);
+    if (isAdd) {
+        this.parentRef._childChanged(this);
+    }
     if (typeof finishedFn === 'function') {
       finishedFn(err, err === null && !_.isUndefined(res), new Snapshot(this, newData, this.priority));
     }
@@ -376,7 +384,7 @@ MockFirebase.prototype._dataChanged = function (unparsedData) {
       keysToChange.forEach(function(key) {
         var childData = unparsedData[key];
           if (utils.isServerTimestamp(childData)) {
-            childData = getServerTime();  
+            childData = getServerTime();
           }
         this._updateOrAdd(key, childData, events);
       }, this);
@@ -467,9 +475,6 @@ MockFirebase.prototype._triggerAll = function (events) {
     if (event !== false) this._trigger.apply(this, event);
   }, this);
   this._trigger('value', this.data, this.priority);
-  if (this.parentRef) {
-    this.parentRef._childChanged(this);
-  }
 };
 
 MockFirebase.prototype._updateOrAdd = function (key, data, events) {

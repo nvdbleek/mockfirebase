@@ -371,6 +371,20 @@ describe('MockFirebase', function () {
       }
     });
 
+    it('should fire child_added events with complete subtree', function () {
+      var data = {
+        foo: ['alpha'],
+        bar: 'bravo'
+      };
+      ref = new Firebase('Empty://', null).autoFlush();
+      ref.child('newkey').once('child_added', spy);
+      ref.child('newkey').set(data);
+      expect(spy.callCount).to.equal(1);
+      var snapshot = spy.getCall(0).args[0];
+      expect(snapshot.val())
+        .to.deep.equal({newkey: data});
+    });
+
     it('should trigger child_removed if child keys are missing', function () {
       ref.on('child_removed', spy);
       var data = ref.getData();
